@@ -1,0 +1,29 @@
+.phoneContainer {
+  :global(.react-tel-input .flag-dropdown) {
+    background-color: transparent !important;
+    border: none !important;
+  }
+
+  :global(.react-tel-input .country-list) {
+    background-color: #1a1a1a !important;
+    color: white !important;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  :global(.react-tel-input .country-list .country:hover),
+  :global(.react-tel-input .country-list .country.highlight) {
+    background-color: #3a5b0bc9 !important;
+    color: white !important;
+  }
+
+  :global(.react-tel-input .selected-flag) {
+    background-color: transparent !important;
+  }
+
+  :global(.react-tel-input .country-list .search) {
+    background-color: #1a1a1a !important;
+    color: white !important;
+    border: 1px solid #3a5b0bc9;
+  }
+}

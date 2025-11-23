@@ -1,0 +1,296 @@
+import { PrismaClient, OrderStatus, OrderFulfillment } from "@prisma/client";
+import { NextFunction, Request, Response } from "express";
+import HttpStatusCodes from "../common/httpstatuscode.js";
+import { RouteError, ValidationErr } from "../common/routeerror.js";
+import {
+  createOrderSchema,
+  updateOrderStatusSchema,
+  updateFulfillmentSchema,
+} from "../types/validations/order.js";
+
+import { prisma } from "../utils/prismaclient.js";
+import { orderProcessed } from "../utils/whatsappclient.js";
+
+/** ✅ Create a new order */
+const createOrder = async (req: Request, res: Response, next: NextFunction) => {
+
+  const parsed = createOrderSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ValidationErr(parsed.error.errors);
+  }
+  const { userId, items, total, addressId, paid, name, phone, street, city, state, country, zipCode } = parsed.data;
+
+  let validAddressId = addressId;
+
+  if (!validAddressId) {
+    // Create new address if addressId not provided
+    const newAddress = await prisma.address.create({
+      data: {
+        name: name!,
+        phone: phone!,
+        street: street!,
+        city: city!,
+        state: state!,
+        country: country!,
+        zipCode: zipCode!,
+        userId: userId
+      }
+    });
+    validAddressId = newAddress.id;
+  } else {
+    // Validate the provided addressId exists
+    const addressExists = await prisma.address.findUnique({
+      where: { id: addressId }
+    });
+    if (!addressExists) {
+      throw new RouteError(HttpStatusCodes.BAD_REQUEST, "Provided addressId does not exist");
+    }
+  }
+
+  const order = await prisma.order.create({
+    data: {
+      userId,
+      total,
+      addressId: validAddressId,
+      status: OrderStatus.PENDING,
+      paid: paid,
+      fulfillment: OrderFulfillment.PENDING,
+      items: {
+        create: items.map((item) => ({
+          productId: item.productId,
+          productVariantId: item.productVariantId,
+          quantity: item.quantity,
+          priceAtOrder: item.priceAtOrder,
+          color: item.color,
+          productImage: item.productImage,
+          productName: item.productName,
+          size: item.size,
+        })),
+      },
+    },
+    include: { items: true },
+  });
+
+  // Get all items details
+
+  // Sanitize and validate WhatsApp message parameters
+  const userName = req.user?.name && req.user.name.trim() !== "" ? req.user.name.trim() : "User";
+  const productName = items[0]?.productName && items[0].productName.trim() !== "" ? items[0].productName.trim() : "product";
+  const userMobile = req.user?.mobile_no && req.user.mobile_no.trim() !== "" ? req.user.mobile_no.trim() : null;
+
+  if (userMobile) {
+    await orderProcessed(
+      userName,
+      productName,
+      "ARVAN",
+      userMobile,
+    );
+  } else {
+    console.warn("Skipping WhatsApp notification: user mobile number is missing or empty");
+  }
+  res.status(HttpStatusCodes.CREATED).json({ success: true, order });
+};
+/** ✅ Get all orders (Admin) */
+const getAllOrders = async (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    throw new RouteError(HttpStatusCodes.UNAUTHORIZED, "Unauthorized");
+  }
+
+  const limit = parseInt(req.query.limit as string) || 10;
+  const page = parseInt(req.query.page as string) || 1;
+  const skip = (page - 1) * limit;
+  const search = req.query.search as string || "";
+
+  // Build the where clause
+  const whereClause: any = req.user.role === "ADMIN" ? {} : { userId: req.user.id };
+  
+  // Add search functionality if search term is provided
+  if (search) {
+    whereClause.OR = [
+      { id: { contains: search, mode: 'insensitive' } },
+      { userId: { contains: search, mode: 'insensitive' } }
+    ];
+  }
+
+  // Get orders with pagination
+  const orders = await prisma.order.findMany({
+    where: whereClause,
+    include: { 
+      items: true // Include all OrderItem fields directly
+    },
+    take: limit,
+    skip: skip,
+    orderBy: { createdAt: 'desc' } // Most recent orders first
+  });
+
+  // No need for complex formatting since the OrderItem already contains all needed fields
+  const formattedOrders = orders.map(order => ({
+    ...order,
+    items: order.items.map(item => ({
+      id: item.productId,
+      quantity: item.quantity,
+      priceAtOrder: item.priceAtOrder,
+      size: item.size,
+      color: item.color,
+      productVariantId: item.productVariantId,
+      productName: item.productName,
+      productImage: item.productImage,
+    })),
+  }));
+
+  // Get total count for pagination
+  const totalItems = await prisma.order.count({
+    where: whereClause
+  });
+
+  const totalPages = Math.ceil(totalItems / limit);
+
+  res.status(HttpStatusCodes.OK).json({
+    success: true,
+    orders: formattedOrders,
+    pagination: {
+      totalPages,
+      currentPage: page,
+      totalItems,
+      itemsPerPage: limit
+    }
+  });
+};
+
+/** ✅ Get a single order by ID */
+const getOrderById = async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      throw new RouteError(HttpStatusCodes.UNAUTHORIZED, "Unauthorized");
+    }
+  
+    const { id } = req.params;
+    if (!id) {
+      throw new RouteError(HttpStatusCodes.BAD_REQUEST, "Missing order ID");
+    }
+  
+    const myOrder = await prisma.order.findUnique({
+      where: { id },
+      include: { items: true, address: true },
+    });
+
+    const actions = [];
+
+    if (myOrder?.status === "PENDING") {
+      actions.push("Cancel Order");
+    }
+
+    if (myOrder?.deliveredAt && myOrder.deliveredAt > new Date(Date.now() - (1000 * 60 * 60 * 24 * 7)) && myOrder.isReturned === false) {
+      actions.push("Return Order");
+    }
+
+    const order = {
+      status: myOrder?.DeliveryStatus,
+      message: myOrder?.etd ? `Expected Delivery On ${myOrder?.etd.slice(0,10)}` : "Order is being processed",
+      color: "bg-yellow-500",
+      actions: actions,
+      isReturned: myOrder?.isReturned,
+      returnDate: myOrder?.returnedAt ? myOrder?.returnedAt.toISOString().slice(0, 10) : null,
+      awb: myOrder?.awb,
+      products: myOrder?.items.map((item) => ({
+        id: item.productId,
+        productName: item.productName,
+        size: item.size,
+        quantity: item.quantity,
+        productColor: item.color,
+        price: item.priceAtOrder,
+        image: item.productImage,
+      })),
+      fulfillment: myOrder?.fulfillment,
+      totalPrice: myOrder?.total,
+      orderDate: myOrder?.createdAt.toISOString().slice(0, 10),
+      orderId: id,
+      paymentMethod: !myOrder?.paid ? "Cash on Delivery" : "RAZORPAY",
+      shippingAddress : {
+        name : myOrder?.address?.name,
+        street : myOrder?.address?.street,
+        city : myOrder?.address?.city,
+        state : myOrder?.address?.state,
+        pincode : myOrder?.address?.zipCode,
+        phone : myOrder?.address?.phone,
+      },
+      timeline: [
+        { status: "Order Placed", date: "5 March 2024, 10:30 AM", completed: true },
+        { status: "Payment Confirmed", date: "5 March 2024, 11:15 AM", completed: true },
+        { status: "Processing", date: "6 March 2024, 9:00 AM", completed: true },
+        { status: "Shipped", date: "7 March 2024, 2:45 PM", completed: true },
+        { status: "Out for Delivery", date: "Expected 19 March 2024", completed: false },
+        { status: "Delivered", date: "Expected 19 March 2024", completed: false }
+      ]
+    };
+  
+    res.status(HttpStatusCodes.OK).json({ success: true, order });
+  };
+
+/** ✅ Update order status */
+const updateOrderStatus = async (req: Request, res: Response, next: NextFunction) => {
+
+  const { id } = req.params;
+  if (!id) {
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, "Missing order id");
+  }
+
+  const parsed = updateOrderStatusSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ValidationErr(parsed.error.errors);
+  }
+
+  const updatedOrder = await prisma.order.update({
+    where: { id },
+    data: { status: parsed.data.status },
+  });
+
+  res.status(HttpStatusCodes.OK).json({ success: true, updatedOrder });
+};
+
+/** ✅ Update fulfillment status */
+const updateFulfillment = async (req: Request, res: Response, next: NextFunction) => {
+
+
+  const { id } = req.params;
+  if (!id) {
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, "Missing order id");
+  }
+
+  const parsed = updateFulfillmentSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ValidationErr(parsed.error.errors);
+  }
+
+  const updatedOrder = await prisma.order.update({
+    where: { id },
+    data: { fulfillment: parsed.data.fulfillment },
+  });
+
+  res.status(HttpStatusCodes.OK).json({ success: true, updatedOrder });
+};
+
+/** ✅ Delete an order */
+const deleteOrder = async (req: Request, res: Response, next: NextFunction) => {
+
+  const { id } = req.params;
+  if (!id) {
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, "Missing order id");
+  }
+
+  const order = await prisma.order.findUnique({ where: { id } });
+  if (!order) {
+    throw new RouteError(HttpStatusCodes.NOT_FOUND, "Order not found");
+  }
+
+  await prisma.order.delete({ where: { id } });
+  res.status(HttpStatusCodes.OK).json({ success: true, message: "Order deleted" });
+};
+
+export default {
+  createOrder,
+  getAllOrders,
+  getOrderById,
+  updateOrderStatus,
+  updateFulfillment,
+  deleteOrder,
+};
