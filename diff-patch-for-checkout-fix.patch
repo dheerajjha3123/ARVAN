@@ -1,0 +1,27 @@
+console.log("clicked");
+  setErrorMessage("");
+  if (!selectedAddress) {
+    setErrorMessage("Please select an address.");
+    return;
+  }
+  if (!paymentMethod) {
+    setErrorMessage("Please select a payment method.");
+    return;
+  }
+  if (!cart || cart.length === 0) {
+    setErrorMessage("Your cart is empty.");
+    return;
+  }
+  setIsLoading(true);
+=======
+const handleSubmit = async () => {
+  console.log("Checkout button clicked");
+  if (!selectedAddress) {
+    alert("Select an address first..");
+    return;
+  }
+  if (!paymentMethod) {
+    alert("Select a payment method first..");
+    return;
+  }
+  setIsLoading(true);

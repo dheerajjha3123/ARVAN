@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/axiosClient";
 import toast from "react-hot-toast";
 import PhoneInput from "react-phone-input-2";
@@ -14,6 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { signIn } from "next-auth/react";
 
 const SignupPopup = ({ onClose }: { onClose: () => void }) => {
+  const router = useRouter();
   const [step, setStep] = useState<"mobile" | "otp">("mobile");
   const [mobileNumber, setMobileNumber] = useState("");
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
@@ -85,6 +87,7 @@ const SignupPopup = ({ onClose }: { onClose: () => void }) => {
 
       if (res?.error) toast.error("Login failed");
 
+      // Close popup instead of redirecting to forgot password page after signup
       onClose();
     } catch (error) {
       console.error("Error verifying OTP:", error);
@@ -191,6 +194,7 @@ const SignupPopup = ({ onClose }: { onClose: () => void }) => {
                   <div
                     className={`${styles.phoneContainer} rounded-xl border-2 border-lime-400 bg-gradient-to-r from-[#2e470fb4] via-[#3a5b0bc9] to-[#3a5b0b49] mt-4`}
                   >
+                    
                     <PhoneInput
                       country={"in"}
                       value={mobileNumber}
@@ -215,6 +219,19 @@ const SignupPopup = ({ onClose }: { onClose: () => void }) => {
                   >
                     {isSubmitting ? "Sending OTP..." : "Continue"}
                   </Button>
+
+                  <div className="text-center mt-6 text-sm text-lime-400">
+                    Don{"'"}t have an account?
+                    <Button
+                      variant="link"
+                      className="text-gray-400 font-bold p-0"
+                      type="button"
+                      onClick={() => router.push("/signup")}
+                      disabled={isSubmitting}
+                    >
+                      Sign Up
+                    </Button>
+                  </div>
                 </form>
               </motion.div>
             ) : (
@@ -276,6 +293,19 @@ const SignupPopup = ({ onClose }: { onClose: () => void }) => {
                   >
                     Change mobile number
                   </Button>
+
+                  <div className="text-center mt-6 text-sm text-lime-400">
+                    Don{"'"}t have an account?
+                    <Button
+                      variant="link"
+                      className="text-gray-400 font-bold p-0"
+                      type="button"
+                      onClick={() => router.push("/signup")}
+                      disabled={isSubmitting}
+                    >
+                      Sign Up
+                    </Button>
+                  </div>
                 </form>
               </motion.div>
             )}

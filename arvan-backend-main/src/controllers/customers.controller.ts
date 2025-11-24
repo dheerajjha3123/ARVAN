@@ -251,7 +251,10 @@ const getOtpByNumber = async (
 
   await sendOtp(getOtp, parsedData.data.mobile_no);
 
-  const jwt = await generateToken({  userphone: parsedData.data.mobile_no,type:parsedData.data.type });
+  // Set token expiry longer for forgetpassword type
+  const tokenExpiry = parsedData.data.type === "forgetpassword" ? "1h" : "15m";
+
+  const jwt = await generateToken({ userphone: parsedData.data.mobile_no, type: parsedData.data.type }, tokenExpiry);
   await prisma.otp.create({
     data: {
       userphone: parsedData.data.mobile_no,
@@ -296,7 +299,10 @@ const getOtpByJwt = async (
 
   await sendOtp(getOtp, data.userphone);
 
-  const jwt = await generateToken({  userphone: data.userphone,type:data.type });
+  // Set token expiry longer for forgetpassword type
+  const tokenExpiry = data.type === "forgetpassword" ? "1h" : "15m";
+
+  const jwt = await generateToken({ userphone: data.userphone, type: data.type }, tokenExpiry);
   await prisma.otp.create({
     data: {
       userphone: data.userphone,
@@ -310,9 +316,9 @@ const getOtpByJwt = async (
     .json({ success: true, message: "OTP sent successfully", jwt });
 };
 
-function generateToken(payload: object): string {
+function generateToken(payload: object, expiresIn: string = "15m"): string {
   const options: SignOptions = {
-    expiresIn: "15m", // Ensure this aligns with the expected type
+    expiresIn, // Allows custom expiry time with default 15 minutes
     // other options
   };
 
@@ -452,30 +458,39 @@ const forgotPassword = async (
     throw new ValidationErr(parsedData.error.errors);
   }
   const tokendata: any = verifyToken(token);
-console.log(tokendata);
+  console.log(tokendata);
   if (!tokendata) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, "Invalid token");
   }
+  if (!tokendata.userphone && !tokendata.mobile_no) {
+    console.error("Token payload missing userphone and mobile_no:", tokendata);
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, "Invalid token: userphone or mobile_no missing");
+  }
 
+  const userPhone = tokendata.userphone ?? tokendata.mobile_no;
 
   const otp = await prisma.otp.findUnique({
     where: {
-      userphone: tokendata.userphone,
+      userphone: userPhone,
     },
   });
 
   if (!otp) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, "Invalid token");
   }
+
+  // New check: Make sure token matches otp.jwt
   if (otp.jwt !== token) {
+    console.error(`Token mismatch: provided token does not match stored OTP JWT. Provided: ${token} Stored: ${otp.jwt}`);
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, "Invalid token");
   }
+
   const salt = await bcryptjs.genSalt(10);
   const hashedPassword = await bcryptjs.hash(password, salt);
 
   await prisma.user.update({
     where: {
-      mobile_no: tokendata.userphone,
+      mobile_no: userPhone,
     },
     data: {
       password: hashedPassword,
@@ -483,7 +498,7 @@ console.log(tokendata);
   })
   await prisma.otp.delete({
     where: {
-      userphone: tokendata.userphone,
+      userphone: userPhone,
     },
   });
   res.status(HttpStatusCodes.OK).json({ success: true, message: "Password updated successfully" });

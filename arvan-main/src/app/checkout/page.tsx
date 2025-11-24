@@ -346,7 +346,10 @@ const handleSubmit = async () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Delivery Address Section */}
             <div>
-              <h2 className="text-4xl font-bold mb-4">Delivery To</h2>
+<h2 className="text-4xl font-bold mb-4">Delivery To</h2>
+{errorMessage && (
+  <p className="text-red-500 mb-4 font-semibold">{errorMessage}</p>
+)}
               {/* {isLoading && <p>Loading addresses...</p>}
               {isError && <p>Error fetching addresses.</p>} */}
 
@@ -469,6 +472,8 @@ const handleSubmit = async () => {
               </div>
               <button
                 onClick={() => handleSubmit()}
+                disabled={!cart || cart.length === 0}
+                style={{ cursor: !cart || cart.length === 0 ? "not-allowed" : "pointer" }}
                 className="inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-9 px-4 w-full bg-[#c2e53a] text-black text-xl font-montserrat rounded-lg py-3 font-semibold mt-6 uppercase cursor-pointer hover:bg-[#aecc34]"
               >
                 Proceed to Payment

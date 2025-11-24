@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 
 const otpschema = z.array(z.string().length(1)).length(6);
 
+
 const OTPVerification = ({id}:{id:string}) => {
   const [otp,setOtp] = useState<string[]>(Array(6).fill(''));
   const verifyOtp  = useVerifyOtp();
@@ -36,9 +37,11 @@ const handleResendOtp = async() => {
       onSuccess:(data)=>{
         toast.success("OTP verified successfully");
         if(data?.jwt){
-          router.push(`/new-password/${data.jwt}`);
-        }else{
-          router.push("/signin");
+          router.push(`/signin`);
+        }
+        else{
+          router.push(`/`);
+          
         }
       },
       
