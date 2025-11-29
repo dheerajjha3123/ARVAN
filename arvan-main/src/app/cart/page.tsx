@@ -19,8 +19,10 @@ export default function CartPage() {
 
   const router = useRouter();
 
-  const subtotal =
-    cart && cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = cart ? cart.reduce((sum, item) => sum + item.price * item.quantity, 0) : 0;
+
+  // const subtotal =
+  //   cart && cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const handleCheckout = async () => {
     setIsLoading(true);
@@ -269,10 +271,9 @@ export default function CartPage() {
                 </div>
 
                 <Button
-                  className="w-full bg-[#c2e53a] text-black text-xl font-montserrat rounded-lg py-3 font-semibold mt-6 uppercase cursor-pointer hover:bg-[#aecc34]"
+                   className="w-full bg-[#c2e53a] text-black text-xl font-montserrat rounded-lg py-3 font-semibold mt-6 uppercase cursor-pointer hover:bg-[#aecc34]"
                   disabled={subtotal === 0 || isLoading}
-                  onClick={handleCheckout}
-                >
+                  onClick={handleCheckout}>
                   {isLoading ? "Processing..." : "Checkout"}
                 </Button>
               </div>

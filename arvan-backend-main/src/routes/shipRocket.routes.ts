@@ -9,4 +9,6 @@ router.post("/cancel", shipRocketController.cancelShiprocketOrder);
 
 router.post("/return", shipRocketController.returnShiprocketOrder);
 
+router.get("/pickupLocations", shipRocketController.getShiprocketPickupLocations);
+
 export default router;

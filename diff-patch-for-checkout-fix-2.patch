@@ -1,5 +1,0 @@
-=======
-<h2 className="text-4xl font-bold mb-4">Delivery To</h2>
-{errorMessage && (
-  <p className="text-red-500 mb-4 font-semibold">{errorMessage}</p>
-)}

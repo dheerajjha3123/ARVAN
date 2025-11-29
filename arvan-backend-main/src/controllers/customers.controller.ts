@@ -148,7 +148,7 @@ const deleteAddress = async (
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, "Missing customer id");
   }
 
-  const { addressId } = req.params;
+  const { id: addressId } = req.params;
 
   if (!addressId) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, "Missing address id");

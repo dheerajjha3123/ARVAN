@@ -7,12 +7,7 @@ import axios from "axios";
 import { OrderFulfillment } from "@prisma/client";
 
 const getShiprocketToken = async () => {
-    const token = await prisma.shiprocketToken.findFirst();
-
-    if (token && token.createdAt.getTime() > Date.now() - 9 * 24 * 60 * 60 * 1000) {
-        return token.token;
-    }
-
+    // Always fetch a new token to ensure validity
     const email = process.env.SHIPROCKET_EMAIL;
     const password = process.env.SHIPROCKET_PASSWORD;
 
@@ -47,6 +42,37 @@ const createShiprocketOrder = async (req: Request, res: Response, next: NextFunc
 
     const orderData = req.body;
 
+    // Clean the billing address to remove pincode if present at the end
+    if (orderData.billing_address && orderData.billing_pincode) {
+        const pincodePattern = new RegExp(`\\s*-\\s*${orderData.billing_pincode}\\s*$`);
+        orderData.billing_address = orderData.billing_address.replace(pincodePattern, '').trim();
+    }
+
+    // Try to fetch valid pickup locations, fallback to default if fails
+    try {
+        const locationsResponse = await axios.get(
+            "https://apiv2.shiprocket.in/v1/external/settings/company/locations",
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${shipToken}`,
+                }
+            }
+        );
+        const locations = locationsResponse.data.data;
+        if (locations && locations.length > 0) {
+            // Set pickup_location to the first valid location
+            orderData.pickup_location = locations[0].pickup_location || locations[0].name;
+        } else {
+            // Fallback to a default if no locations found
+            orderData.pickup_location = "Home";
+        }
+    } catch (error) {
+        console.warn("Failed to fetch pickup locations, using default:", error);
+        // Fallback to a common pickup location name
+        orderData.pickup_location = "Home";
+    }
+
     console.log(orderData);
 
     const passedData = ShipRocketOrderSchema.safeParse(orderData);
@@ -54,6 +80,18 @@ const createShiprocketOrder = async (req: Request, res: Response, next: NextFunc
         throw new RouteError(HttpStatusCodes.BAD_REQUEST, "Invalid data");
     }
 
+    // Ensure unique SKUs for Shiprocket order items
+    const uniqueSkus = new Set<string>();
+    orderData.order_items = orderData.order_items.map((item: any, index: number) => {
+        let sku = item.sku;
+        let counter = 1;
+        while (uniqueSkus.has(sku)) {
+            sku = `${item.sku}_${counter}`;
+            counter++;
+        }
+        uniqueSkus.add(sku);
+        return { ...item, sku };
+    });
 
     try {
         const response = await axios.post(
@@ -235,8 +273,31 @@ const returnShiprocketOrder = async (req: Request, res: Response, next: NextFunc
     }
 };
 
+const getShiprocketPickupLocations = async (req: Request, res: Response, next: NextFunction) => {
+    const shipToken = await getShiprocketToken();
+    if (!shipToken) {
+        throw new RouteError(HttpStatusCodes.UNAUTHORIZED, "Unauthorized");
+    }
+    try {
+        const response = await axios.get(
+            "https://apiv2.shiprocket.in/v1/external/settings/company/locations",
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${shipToken}`,
+                }
+            }
+        );
+        res.status(HttpStatusCodes.OK).json({ success: true, locations: response.data.data });
+    } catch (error) {
+        console.error("Shiprocket Pickup Locations Fetch Error:", error);
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json({ success: false, message: "Failed to fetch pickup locations" });
+    }
+};
+
 export default {
     createShiprocketOrder,
     cancelShiprocketOrder,
-    returnShiprocketOrder
+    returnShiprocketOrder,
+    getShiprocketPickupLocations
 };

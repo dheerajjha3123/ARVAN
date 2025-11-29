@@ -11,7 +11,7 @@ router.put("/customer/:addressId", authenticateJWT,customersController.updatecus
 router.get("/customer", authenticateJWT,customersController.getCustomer);
 
 
-router.delete("address/:id",authenticateJWT, customersController.deleteAddress);
+router.delete("/address/:addressId",authenticateJWT, customersController.deleteAddress);
 
 router.put("/address/:id", authenticateJWT,customersController.updateAddress);
 

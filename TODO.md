@@ -1,0 +1,2 @@
+- [x] Modify createShiprocketOrder in shiprocket.controller.ts to ensure unique SKUs by appending suffix for duplicates
+- [x] Test order creation to confirm unique SKUs and successful Shiprocket order placement
