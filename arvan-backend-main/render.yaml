@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: arvan-backend
+    runtime: node
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: FRONTENDURL
+        sync: false
+      - key: AUTH_SECRET
+        sync: false
+      - key: WHATSAPP_API_TOKEN
+        sync: false
+      - key: WHATSAPP_MOBILE
+        sync: false
+      - key: WHATSAPP_MOBILE_ID
+        sync: false
+      - key: WHATSAPP_BUISSNESS_ID
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_EMAIL
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
