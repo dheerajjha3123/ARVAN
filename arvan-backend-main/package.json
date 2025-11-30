@@ -5,9 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "prisma generate && set NODE_ENV=PRODUCTION & node dist/index.js",
-    "build": "prisma generate && npx tsc -p .",
-    "dev": "prisma generate && concurrently \"npx tsc -w\" \"nodemon dist/index.js\"",
+    "start": "npx prisma generate && set NODE_ENV=PRODUCTION & node dist/index.js",
+    "build": "npx prisma generate && npx tsc -p .",
+    "dev": "npx prisma generate && concurrently \"npx tsc -w\" \"nodemon dist/index.js\"",
     "watch": "npx tsc -w"
   },
   "keywords": [],
