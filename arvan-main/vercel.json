@@ -6,7 +6,7 @@
   "framework": "nextjs",
   "functions": {
     "src/app/api/**/*.ts": {
-      "runtime": "@vercel/node"
+      "runtime": "@vercel/node@18"
     }
   }
 }
