@@ -318,7 +318,7 @@ const getOtpByJwt = async (
 
 function generateToken(payload: object, expiresIn: string | number = "15m"): string {
   const options: SignOptions = {
-    expiresIn, // Allows custom expiry time with default 15 minutes
+    expiresIn: expiresIn as any, // Allows custom expiry time with default 15 minutes
     // other options
   };
 

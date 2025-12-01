@@ -118,7 +118,7 @@ export const authenticateJWT: RequestHandler = async (
       return next();
     }
 
-    const token = await getToken({ req, secret: ENV.AUTH_SECRET, encryption: true });
+    const token = await getToken({ req: req as any, secret: ENV.AUTH_SECRET });
 
     if (!token) {
       throw new RouteError(403, "Unauthorized: No valid token found");
