@@ -1,6 +1,5 @@
  {
   "version": 2,
-  "rootDirectory": "arvan-main",
    "buildCommand": "prisma generate --no-engine && next build",
    "devCommand": "prisma generate --no-engine && next dev",
    "installCommand": "npm install",
