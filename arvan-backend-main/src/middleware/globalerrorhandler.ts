@@ -102,7 +102,7 @@ export const globalErrorHandler = (
 declare global {
   namespace Express {
     interface Request {
-      user: any; // Add a `session` property to the Request interface
+      user?: any; // Add a `session` property to the Request interface
     }
   }
 }
@@ -124,15 +124,15 @@ export const authenticateJWT: RequestHandler = async (
       throw new RouteError(403, "Unauthorized: No valid token found");
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: token.id },
+    const userRecord = await prisma.user.findUnique({
+      where: { id: token.id as string },
     });
 
-    if (!user) {
+    if (!userRecord) {
       throw new RouteError(403, "Unauthorized: User not found");
     }
 
-    req.user = user;
+    req.user = userRecord;
 
     next();
   } catch (error: unknown) {
@@ -143,10 +143,10 @@ export const authenticateJWT: RequestHandler = async (
       'path' in req &&
       typeof req.path === 'string' &&
       (
-        req.path.includes('/otp') ||
-        req.path.includes('/verify-otp') ||
-        req.path.includes('/reset-password') ||
-        req.path.includes('/resend-otp')
+        (req.path as string).includes('/otp') ||
+        (req.path as string).includes('/verify-otp') ||
+        (req.path as string).includes('/reset-password') ||
+        (req.path as string).includes('/resend-otp')
       )
     ) {
       return next();
