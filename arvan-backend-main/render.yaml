@@ -2,7 +2,7 @@ services:
   - type: web
     name: arvan-backend
     runtime: node
-    buildCommand: pnpm run build
+    buildCommand: pnpm install && pnpm run build
     startCommand: pnpm start
     envVars:
       - key: NODE_ENV
