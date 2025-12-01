@@ -1,8 +1,1 @@
-import { defineConfig } from 'prisma/config'
-
-export default defineConfig({
-  schema: './schema.prisma',
-  config: {
-    DATABASE_URL: process.env.DATABASE_URL,
-  },
-})
+// This file is no longer needed - DATABASE_URL is configured in schema.prisma
