@@ -509,7 +509,7 @@ const makeAdmin = async (req: Request, res: Response, next: NextFunction) => {
 
   const user = await prisma.user.findUnique({
     where: {
-      mobile_no: mobile_no,
+      mobile_no: mobile_no as string,
     },
   });
 
@@ -523,7 +523,7 @@ const makeAdmin = async (req: Request, res: Response, next: NextFunction) => {
 
   await prisma.user.update({
     where: {
-      mobile_no: mobile_no,
+      mobile_no: mobile_no as string,
     },
     data: {
       role: "ADMIN",

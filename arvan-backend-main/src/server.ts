@@ -1,7 +1,7 @@
 import morgan from 'morgan';
 
 import helmet from 'helmet';
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response, NextFunction, ErrorRequestHandler } from 'express';
 
 
 import 'express-async-errors';

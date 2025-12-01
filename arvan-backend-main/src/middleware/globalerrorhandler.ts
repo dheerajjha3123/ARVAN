@@ -1,4 +1,4 @@
-import { Request as ExpressRequest, Response, NextFunction } from "express";
+import { Request as ExpressRequest, Response, NextFunction, RequestHandler } from "express";
 import HttpStatusCodes from "../common/httpstatuscode.js";
 import { RouteError } from "../common/routeerror.js";
 import ENV from "../common/env.js";
@@ -14,7 +14,7 @@ import jwt from "jsonwebtoken";
 const cleanMessage = (message: string) => message.replace(/(\r\n|\r|\n)/g, " ");
 export const globalErrorHandler = (
   err: Error & { code?: string; meta?: any },
-  req: Request,
+  req: ExpressRequest,
   res: Response,
   next: NextFunction
 ): any => {
@@ -107,8 +107,8 @@ declare global {
   }
 }
 
-export const authenticateJWT = async (
-  req: ExpressRequest | { headers: Record<string, string> },
+export const authenticateJWT: RequestHandler = async (
+  req: ExpressRequest,
   res: Response,
   next: NextFunction
 ): Promise<any> => {
@@ -156,7 +156,7 @@ export const authenticateJWT = async (
 };
 
 
-export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+export const isAdmin: RequestHandler = (req: ExpressRequest, res: Response, next: NextFunction) => {
   const adminNumbersEnv: string | undefined = (ENV as any).ADMIN_NUMBERS;
   const adminNumbers = adminNumbersEnv ? adminNumbersEnv.split(',').map((s: string) => s.trim()) : [];
   const userPhone = req.user?.phone || req.user?.userphone || req.user?.mobile_no || "";
