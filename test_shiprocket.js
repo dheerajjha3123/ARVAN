@@ -8,7 +8,7 @@ async function testShiprocketAPI() {
         // First, get token
         console.log('1. Getting authentication token...');
         const authResponse = await axios.post('https://apiv2.shiprocket.in/v1/external/auth/login', {
-            email: "arvansite77@gmail.com",
+            email: "arvansie77@gmail.com",
             password: "m%$!SF5lmDNWpB0j"
         });
 
