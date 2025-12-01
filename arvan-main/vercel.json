@@ -1,19 +1,14 @@
-// {
-//   "buildCommand": "prisma generate --no-engine && next build",
-//   "devCommand": "prisma generate --no-engine && next dev",
-//   "installCommand": "npm install",
-//   "framework": "nextjs",
-//   "functions": {
-//     "src/app/api/**/*.ts": {
-//       "runtime": "@vercel/node"
-//     }
-//   }
-// }
-
-{
+ {
   "version": 2,
-  "buildCommand": "prisma generate --no-engine && next build",
-  "devCommand": "prisma generate --no-engine && next dev",
-  "installCommand": "npm install",
-  "framework": "nextjs"
+  "rootDirectory": "arvan-main",
+   "buildCommand": "prisma generate --no-engine && next build",
+   "devCommand": "prisma generate --no-engine && next dev",
+   "installCommand": "npm install",
+  "framework": "nextjs",
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "runtime": "@vercel/node"
+    }
+  }
 }
+
