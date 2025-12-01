@@ -1,11 +1,18 @@
+// {
+//   "buildCommand": "prisma generate --no-engine && next build",
+//   "devCommand": "prisma generate --no-engine && next dev",
+//   "installCommand": "npm install",
+//   "framework": "nextjs",
+//   "functions": {
+//     "src/app/api/**/*.ts": {
+//       "runtime": "@vercel/node"
+//     }
+//   }
+// }
+
 {
   "buildCommand": "prisma generate --no-engine && next build",
   "devCommand": "prisma generate --no-engine && next dev",
   "installCommand": "npm install",
-  "framework": "nextjs",
-  "functions": {
-    "src/app/api/**/*.ts": {
-      "runtime": "@vercel/node"
-    }
-  }
+  "framework": "nextjs"
 }
