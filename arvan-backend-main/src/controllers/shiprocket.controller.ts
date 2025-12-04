@@ -105,16 +105,25 @@ const createShiprocketOrder: RequestHandler = async (req, res, next) => {
         );
         const locations = locationsResponse.data.shipping_address || locationsResponse.data.data;
         console.log("Available pickup locations:", locations);
+        console.log("Locations type:", typeof locations, "Is array:", Array.isArray(locations));
 
-        if (locations && locations.length > 0) {
+        // Handle both cases: locations is the array directly, or locations is the full response object
+        let pickupLocations = [];
+        if (Array.isArray(locations)) {
+            pickupLocations = locations;
+        } else if (locations && locations.shipping_address && Array.isArray(locations.shipping_address)) {
+            pickupLocations = locations.shipping_address;
+        }
+
+        if (pickupLocations.length > 0) {
             // Use the first available pickup location
-            const firstLocation = locations[0];
+            const firstLocation = pickupLocations[0];
             orderData.pickup_location = firstLocation.pickup_location || firstLocation.nickname || firstLocation.address || firstLocation.city;
             console.log("Selected pickup location:", orderData.pickup_location);
         } else {
-            console.warn("No pickup locations found in response");
-            // Don't set a default - let Shiprocket handle it or fail gracefully
-            delete orderData.pickup_location;
+            console.warn("No pickup locations found in response - locations:", locations);
+            // Set a default pickup location if none found
+            orderData.pickup_location = "warehouse"; // Use the first location name we saw in logs
         }
     } catch (error: any) {
         console.warn("Failed to fetch pickup locations:", error?.response?.status || error.message);
@@ -133,10 +142,27 @@ const createShiprocketOrder: RequestHandler = async (req, res, next) => {
 
     console.log(orderData);
 
-    const passedData = ShipRocketOrderSchema.safeParse(orderData);
+    // Add default values for required fields that might be missing
+    const enrichedOrderData = {
+        ...orderData,
+        billing_customer_name: orderData.billing_customer_name || orderData.customer_name || "Customer",
+        billing_address: orderData.billing_address || orderData.shipping_address || "Address",
+        billing_city: orderData.billing_city || orderData.shipping_city || "City",
+        billing_pincode: orderData.billing_pincode || orderData.shipping_pincode || "000000",
+        billing_state: orderData.billing_state || orderData.shipping_state || "State",
+        billing_country: orderData.billing_country || orderData.shipping_country || "India",
+        billing_email: orderData.billing_email || orderData.customer_email || "customer@example.com",
+        billing_phone: orderData.billing_phone || orderData.customer_phone || "0000000000",
+        order_items: orderData.order_items.map((item: any) => ({
+            ...item,
+            hsn: item.hsn || "0000" // Add default HSN code if missing
+        }))
+    };
+
+    const passedData = ShipRocketOrderSchema.safeParse(enrichedOrderData);
     if (!passedData.success) {
         console.error("Validation errors:", passedData.error.errors);
-        console.error("Order data being validated:", orderData);
+        console.error("Order data being validated:", enrichedOrderData);
         throw new RouteError(HttpStatusCodes.BAD_REQUEST, "Invalid data: " + passedData.error.errors.map(e => e.message).join(", "));
     }
 

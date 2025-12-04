@@ -67,12 +67,25 @@ const TrackOrders = ({ user }: { user: Session["user"] }) => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "Delivered":
+      case "COMPLETED":
         return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case "Shipping":
-        return <Truck className="w-5 h-5 text-yellow-500" />;
-      case "In Process":
-        return <Package className="w-5 h-5 text-yellow-500" />;
+      case "PENDING":
+        return <Clock className="w-5 h-5 text-yellow-500" />;
+      case "CANCELLED":
+        return <XCircle className="w-5 h-5 text-red-500" />;
+      default:
+        return <Clock className="w-5 h-5 text-gray-400" />;
+    }
+  };
+
+  const getDeliveryStatusIcon = (status: string) => {
+    switch (status) {
+      case "DELIVERED":
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
+      case "SHIPPED":
+        return <Truck className="w-5 h-5 text-blue-500" />;
+      case "PENDING":
+        return <Clock className="w-5 h-5 text-yellow-500" />;
       default:
         return <Clock className="w-5 h-5 text-gray-400" />;
     }
@@ -193,18 +206,39 @@ const TrackOrders = ({ user }: { user: Session["user"] }) => {
 
                 {/* Order Status */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 px-4 sm:px-6 py-3 bg-black/20 border-b border-gray-700">
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(order.status)}
-                    <span
-                      className={`text-sm font-medium ${
-                        order.status === "Delivered"
-                          ? "text-green-500"
-                          : order.status === "Shipping"
-                          ? "text-yellow-500"
-                          : "text-yellow-500"
-                      }`}>
-                      {order.status}
-                    </span>
+                  <div className="flex flex-col sm:flex-row gap-4 w-full">
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(order.status)}
+                      <div>
+                        <p className="text-xs text-gray-400">Order Status</p>
+                        <span
+                          className={`text-sm font-medium ${
+                            order.status === "COMPLETED"
+                              ? "text-green-500"
+                              : order.status === "PENDING"
+                              ? "text-yellow-500"
+                              : "text-red-500"
+                          }`}>
+                          {order.status}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {getDeliveryStatusIcon(order.DeliveryStatus || "PENDING")}
+                      <div>
+                        <p className="text-xs text-gray-400">Delivery Status</p>
+                        <span
+                          className={`text-sm font-medium ${
+                            order.DeliveryStatus === "DELIVERED"
+                              ? "text-green-500"
+                              : order.DeliveryStatus === "SHIPPED"
+                              ? "text-blue-500"
+                              : "text-yellow-500"
+                          }`}>
+                          {order.DeliveryStatus || "PENDING"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                   {order?.awb && (
                     <a

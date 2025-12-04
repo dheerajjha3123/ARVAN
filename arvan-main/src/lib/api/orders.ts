@@ -21,6 +21,8 @@ export interface Order {
   items: OrderItems[];
   total: number;
   status: string;
+  DeliveryStatus?: string;
+  fulfillment?: string;
   createdAt?: string;
   updatedAt?: string;
 }

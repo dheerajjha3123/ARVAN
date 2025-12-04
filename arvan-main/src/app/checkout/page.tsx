@@ -14,6 +14,7 @@ import { useSession } from "next-auth/react";
 import { Order, orderApi } from "@/lib/api/orders";
 import { apiClient } from "@/lib/axiosClient";
 import cuid from "cuid";
+import toast from "react-hot-toast";
 
 const Checkout: React.FC = () => {
   const [selectedAddress, setSelectedAddress] = useState<string>("");
@@ -133,7 +134,8 @@ const handleSubmit = async () => {
               console.error("Failed to create Shiprocket order", err);
             }
             setIsLoading(false);
-            router.push("/profile");
+            toast.success("Order placed successfully!");
+            router.push("/track-order");
           },
           onError: (error) => {
             console.error("Order creation failed:", error);
@@ -247,7 +249,8 @@ const handleSubmit = async () => {
 
                   // 🔥 Shiprocket Order
                   await createShiprocketOrder(orderId as string);
-                  router.push("/profile");
+                  toast.success("Your Order Placed Successfully");
+                  router.push("/track-order");
                 },
                 onError: (error) => {
                   console.error("Error creating order:", error);
