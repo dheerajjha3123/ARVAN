@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Request, Response, RequestHandler } from "express";
 import { prisma } from "../utils/prismaclient.js";
 import { RouteError } from "../common/routeerror.js";
 import HttpStatusCodes from "../common/httpstatuscode.js";
@@ -40,7 +40,7 @@ const getShiprocketToken = async () => {
     }
 };
 
-const createShiprocketOrder = async (req: Request, res: Response, next: NextFunction) => {
+const createShiprocketOrder: RequestHandler = async (req, res, next) => {
     const orderData = req.body;
     const shipToken = await getShiprocketToken();
 
@@ -73,12 +73,13 @@ const createShiprocketOrder = async (req: Request, res: Response, next: NextFunc
                 }
             });
 
-            return res.status(HttpStatusCodes.CREATED).json({
+            res.status(HttpStatusCodes.CREATED).json({
                 success: true,
                 message: "Order saved successfully, but Shiprocket integration failed. Please check your Shiprocket credentials.",
                 shiprocket_status: "failed",
                 order_id: orderData.order_id
             });
+            return;
         } catch (dbError: any) {
             console.error("Database error:", dbError);
             throw new RouteError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Failed to save order");
@@ -189,12 +190,13 @@ const createShiprocketOrder = async (req: Request, res: Response, next: NextFunc
 
             // If it's about pickup location or address, provide helpful guidance
             if (errorMessage.includes("billing/shipping address") || errorMessage.includes("pickup")) {
-                return res.status(HttpStatusCodes.BAD_REQUEST).json({
+                res.status(HttpStatusCodes.BAD_REQUEST).json({
                     success: false,
                     error: "Shiprocket Configuration Required",
                     message: "Please configure your pickup location and billing/shipping address in your Shiprocket dashboard first.",
                     details: errorMessage
                 });
+                return;
             }
 
             return res.status(HttpStatusCodes.BAD_REQUEST).json({
@@ -214,7 +216,7 @@ const createShiprocketOrder = async (req: Request, res: Response, next: NextFunc
 
 };
 
-const cancelShiprocketOrder = async (req: Request, res: Response, next: NextFunction) => {
+const cancelShiprocketOrder: RequestHandler = async (req, res, next) => {
     const shipToken = await getShiprocketToken();
     if (!shipToken) {
         throw new RouteError(HttpStatusCodes.UNAUTHORIZED, "Unauthorized");
@@ -252,7 +254,7 @@ const cancelShiprocketOrder = async (req: Request, res: Response, next: NextFunc
 };
 
 
-const returnShiprocketOrder = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const returnShiprocketOrder: RequestHandler = async (req, res, next) => {
     const shipToken = await getShiprocketToken();
     if (!shipToken) {
         throw new RouteError(HttpStatusCodes.UNAUTHORIZED, "Unauthorized");
@@ -360,7 +362,7 @@ const returnShiprocketOrder = async (req: Request, res: Response, next: NextFunc
     }
 };
 
-const getShiprocketPickupLocations = async (req: Request, res: Response, next: NextFunction) => {
+const getShiprocketPickupLocations: RequestHandler = async (req, res, next) => {
     const shipToken = await getShiprocketToken();
     if (!shipToken) {
         throw new RouteError(HttpStatusCodes.UNAUTHORIZED, "Unauthorized");
