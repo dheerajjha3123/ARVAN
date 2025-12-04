@@ -8,8 +8,13 @@ import { OrderFulfillment } from "@prisma/client";
 
 const getShiprocketToken = async () => {
     // Always fetch a new token to ensure validity
-    const email = process.env.SHIPROCKET_EMAIL;
-    const password = process.env.SHIPROCKET_PASSWORD;
+    const email = process.env.SHIPROCKET_EMAIL?.trim();
+    const password = process.env.SHIPROCKET_PASSWORD?.trim();
+
+    if (!email || !password) {
+        console.error("Shiprocket credentials not found in environment variables");
+        return null;
+    }
 
     try {
         const response = await axios.post(
@@ -28,19 +33,57 @@ const getShiprocketToken = async () => {
             ]);
         }
         return token;
-    } catch (error) {
-        console.error("Shiprocket Auth Error:", error);
+    } catch (error: any) {
+        console.error("Shiprocket Auth Error:", error?.response?.status || error.message);
+        console.error("Auth Error Details:", error?.response?.data?.message || "Unknown error");
         return null;
     }
 };
 
 const createShiprocketOrder = async (req: Request, res: Response, next: NextFunction) => {
-    const shipToken = await getShiprocketToken();
-    if (!shipToken) {
-        throw new RouteError(HttpStatusCodes.UNAUTHORIZED, "Unauthorized");
-    }
-
     const orderData = req.body;
+    const shipToken = await getShiprocketToken();
+
+    if (!shipToken) {
+        // Don't throw error - save order to DB but return warning about Shiprocket
+        console.warn("Shiprocket authentication failed - order will be saved locally only");
+
+        // Still save the order to database
+        try {
+            await prisma.order.create({
+                data: {
+                    id: orderData.order_id,
+                    userId: orderData.user_id || orderData.customer_id, // Use userId field from schema
+                    total: orderData.sub_total,
+                    paid: orderData.payment_method !== 'COD',
+                    status: 'PENDING',
+                    fulfillment: 'PENDING',
+                    addressId: orderData.address_id, // Required address relation
+                    items: {
+                        create: orderData.order_items.map((item: any) => ({
+                            productName: item.name,
+                            color: item.sku.split('ARV')[1]?.charAt(0) || 'Default',
+                            size: item.sku.split('ARV')[1]?.slice(1) || 'Default',
+                            quantity: item.units,
+                            priceAtOrder: item.selling_price,
+                            productId: item.product_id || 'default-product-id', // Required product relation
+                            productVariantId: item.variant_id || 'default-variant-id' // Required variant relation
+                        }))
+                    }
+                }
+            });
+
+            return res.status(HttpStatusCodes.CREATED).json({
+                success: true,
+                message: "Order saved successfully, but Shiprocket integration failed. Please check your Shiprocket credentials.",
+                shiprocket_status: "failed",
+                order_id: orderData.order_id
+            });
+        } catch (dbError: any) {
+            console.error("Database error:", dbError);
+            throw new RouteError(HttpStatusCodes.INTERNAL_SERVER_ERROR, "Failed to save order");
+        }
+    }
 
     // Clean the billing address to remove pincode if present at the end
     if (orderData.billing_address && orderData.billing_pincode) {
@@ -51,7 +94,7 @@ const createShiprocketOrder = async (req: Request, res: Response, next: NextFunc
     // Try to fetch valid pickup locations, fallback to default if fails
     try {
         const locationsResponse = await axios.get(
-            "https://apiv2.shiprocket.in/v1/external/settings/company/locations",
+            "https://apiv2.shiprocket.in/v1/external/settings/company/pickup",
             {
                 headers: {
                     "Content-Type": "application/json",
@@ -59,25 +102,41 @@ const createShiprocketOrder = async (req: Request, res: Response, next: NextFunc
                 }
             }
         );
-        const locations = locationsResponse.data.data;
+        const locations = locationsResponse.data.shipping_address || locationsResponse.data.data;
+        console.log("Available pickup locations:", locations);
+
         if (locations && locations.length > 0) {
-            // Set pickup_location to the first valid location
-            orderData.pickup_location = locations[0].pickup_location || locations[0].name;
+            // Use the first available pickup location
+            const firstLocation = locations[0];
+            orderData.pickup_location = firstLocation.pickup_location || firstLocation.nickname || firstLocation.address || firstLocation.city;
+            console.log("Selected pickup location:", orderData.pickup_location);
         } else {
-            // Fallback to a default if no locations found
-            orderData.pickup_location = "Home";
+            console.warn("No pickup locations found in response");
+            // Don't set a default - let Shiprocket handle it or fail gracefully
+            delete orderData.pickup_location;
         }
-    } catch (error) {
-        console.warn("Failed to fetch pickup locations, using default:", error);
-        // Fallback to a common pickup location name
-        orderData.pickup_location = "Home";
+    } catch (error: any) {
+        console.warn("Failed to fetch pickup locations:", error?.response?.status || error.message);
+        console.warn("Pickup location error details:", error?.response?.data);
+
+        // If we get the "Wrong Pickup location" error, it means locations exist but we're using wrong name
+        // In this case, we should not set any pickup_location and let the API handle it
+        if (error?.response?.data?.message?.includes("Wrong Pickup location")) {
+            console.log("Pickup location validation failed, removing pickup_location from order");
+            delete orderData.pickup_location;
+        } else {
+            // For other errors, don't set pickup location
+            delete orderData.pickup_location;
+        }
     }
 
     console.log(orderData);
 
     const passedData = ShipRocketOrderSchema.safeParse(orderData);
     if (!passedData.success) {
-        throw new RouteError(HttpStatusCodes.BAD_REQUEST, "Invalid data");
+        console.error("Validation errors:", passedData.error.errors);
+        console.error("Order data being validated:", orderData);
+        throw new RouteError(HttpStatusCodes.BAD_REQUEST, "Invalid data: " + passedData.error.errors.map(e => e.message).join(", "));
     }
 
     // Ensure unique SKUs for Shiprocket order items
@@ -106,7 +165,6 @@ const createShiprocketOrder = async (req: Request, res: Response, next: NextFunc
         );
         console.log(response.data);
 
-
         const ShipRocketOrderId = response.data.order_id;
         await prisma.$transaction([
             prisma.order.update({
@@ -121,8 +179,37 @@ const createShiprocketOrder = async (req: Request, res: Response, next: NextFunc
 
         res.status(HttpStatusCodes.CREATED).json({ success: true, data: response.data });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Shiprocket Create Order Error:", error);
+
+        // Handle specific Shiprocket errors
+        if (error.response?.status === 400) {
+            const errorMessage = error.response?.data?.message || "Bad request to Shiprocket";
+            console.error("Shiprocket 400 Error:", errorMessage);
+
+            // If it's about pickup location or address, provide helpful guidance
+            if (errorMessage.includes("billing/shipping address") || errorMessage.includes("pickup")) {
+                return res.status(HttpStatusCodes.BAD_REQUEST).json({
+                    success: false,
+                    error: "Shiprocket Configuration Required",
+                    message: "Please configure your pickup location and billing/shipping address in your Shiprocket dashboard first.",
+                    details: errorMessage
+                });
+            }
+
+            return res.status(HttpStatusCodes.BAD_REQUEST).json({
+                success: false,
+                error: "Order Creation Failed",
+                message: errorMessage
+            });
+        }
+
+        // For other errors, still save the order but mark it as failed
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            error: "Failed to create Shiprocket order",
+            message: error.response?.data?.message || error.message
+        });
     }
 
 };
@@ -280,7 +367,7 @@ const getShiprocketPickupLocations = async (req: Request, res: Response, next: N
     }
     try {
         const response = await axios.get(
-            "https://apiv2.shiprocket.in/v1/external/settings/company/locations",
+            "https://apiv2.shiprocket.in/v1/external/settings/company/pickup",
             {
                 headers: {
                     "Content-Type": "application/json",
@@ -289,9 +376,13 @@ const getShiprocketPickupLocations = async (req: Request, res: Response, next: N
             }
         );
         res.status(HttpStatusCodes.OK).json({ success: true, locations: response.data.data });
-    } catch (error) {
-        console.error("Shiprocket Pickup Locations Fetch Error:", error);
-        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json({ success: false, message: "Failed to fetch pickup locations" });
+    } catch (error: any) {
+        console.error("Shiprocket Pickup Locations Fetch Error:", error?.response?.status || error.message);
+        res.status(HttpStatusCodes.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: "Failed to fetch pickup locations",
+            details: error?.response?.data?.message || error.message
+        });
     }
 };
 

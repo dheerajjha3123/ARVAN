@@ -233,6 +233,19 @@ const getOtpByNumber = async (
     throw new ValidationErr(parsedData.error.errors);
   }
 
+  // For login type, check if user exists
+  if (parsedData.data.type === "login") {
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        mobile_no: parsedData.data.mobile_no,
+      },
+    });
+
+    if (!existingUser) {
+      throw new RouteError(HttpStatusCodes.BAD_REQUEST, "User not found, please register first");
+    }
+  }
+
   const findOtp = await prisma.otp.findUnique({
     where: {
       userphone: parsedData.data.mobile_no,
@@ -420,7 +433,16 @@ const verfy_otp = async (req: Request, res: Response, next: NextFunction) => {
     });
 
     if (!user) {
-      throw new RouteError(HttpStatusCodes.UNAUTHORIZED, "User not found during login token generation");
+      // Delete the OTP since user not found
+      await prisma.otp.delete({
+        where: {
+          otp: findOtp.otp,
+        },
+      });
+      res
+        .status(HttpStatusCodes.OK)
+        .json({ success: false, message: "User not found, you have to register first" });
+      return;
     }
 
     const loginToken = generateToken({

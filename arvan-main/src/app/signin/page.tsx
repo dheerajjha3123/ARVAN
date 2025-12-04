@@ -114,7 +114,7 @@ const Signin = () => {
       setIsLoading(true);
       const res = await apiClient.post("/api/customers/otp", {
         mobile_no: mobile,
-        type: "verify",
+        type: "login",
       });
 
       if (res.status === 202) {

@@ -35,16 +35,24 @@ const handleResendOtp = async() => {
 
     verifyOtp.mutate(data,{
       onSuccess:(data)=>{
+        if (data?.success === false) {
+          toast.error(data.message);
+          // Optionally, add a button or redirect to signup
+          setTimeout(() => {
+            router.push('/signup');
+          }, 2000); // Redirect to signup after 2 seconds
+          return;
+        }
         toast.success("OTP verified successfully");
         if(data?.jwt){
           router.push(`/signin`);
         }
         else{
           router.push(`/`);
-          
+
         }
       },
-      
+
     });
 
    }else{
