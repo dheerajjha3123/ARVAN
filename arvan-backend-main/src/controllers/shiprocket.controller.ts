@@ -199,11 +199,12 @@ const createShiprocketOrder: RequestHandler = async (req, res, next) => {
                 return;
             }
 
-            return res.status(HttpStatusCodes.BAD_REQUEST).json({
+            res.status(HttpStatusCodes.BAD_REQUEST).json({
                 success: false,
                 error: "Order Creation Failed",
                 message: errorMessage
             });
+            return;
         }
 
         // For other errors, still save the order but mark it as failed
