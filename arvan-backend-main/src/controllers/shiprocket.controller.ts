@@ -252,7 +252,7 @@ const cancelShiprocketOrder = async (req: Request, res: Response, next: NextFunc
 };
 
 
-const returnShiprocketOrder = async (req: Request, res: Response, next: NextFunction) => {
+const returnShiprocketOrder = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const shipToken = await getShiprocketToken();
     if (!shipToken) {
         throw new RouteError(HttpStatusCodes.UNAUTHORIZED, "Unauthorized");
