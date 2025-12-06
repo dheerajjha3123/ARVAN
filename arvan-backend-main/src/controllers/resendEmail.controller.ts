@@ -243,10 +243,10 @@ const sendEmail = async (req: Request, res: Response): Promise<void> => {
   const emailContent = generateEmailContent(name, email, phone, message);
 
   try {
-    // CURRENT LOGIC: Send to admin email only (works without domain verification)
+    // Send to admin email using verified domain
     const response = await resend.emails.send({
-      from: ENV.RESEND_EMAIL,
-      to: ENV.RESEND_EMAIL, // Send to admin email instead of user's email
+      from: `The Arvan <noreply@${ENV.RESEND_EMAIL.split('@')[1]}>`, // Use your verified domain
+      to: ENV.RESEND_EMAIL, // Send to admin email
       subject: 'New Contact Form Submission - The Arvan',
       html: emailContent,
     });
@@ -362,8 +362,8 @@ const updateStatussendMail = async (req: Request, res: Response): Promise<void> 
 
     // Send email using Resend
     const response = await resend.emails.send({
-      from: 'Acme <onboarding@resend.dev>',
-      to: contact.email,
+      from: `The Arvan <noreply@${ENV.RESEND_EMAIL.split('@')[1]}>`, // Use your verified domain
+      to: contact.email, // Send response to the contact's email
       subject: 'Response to Your Inquiry ✅',
       html: emailContent,
     });
