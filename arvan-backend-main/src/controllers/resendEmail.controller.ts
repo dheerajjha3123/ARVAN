@@ -363,7 +363,7 @@ const updateStatussendMail = async (req: Request, res: Response): Promise<void> 
     // Send email using Resend
     const response = await resend.emails.send({
       from: `The Arvan <noreply@${ENV.RESEND_EMAIL.split('@')[1]}>`, // Use your verified domain
-      to: contact.email, // Send response to the contact's email
+      to: [contact.email, ENV.RESEND_EMAIL_RECEIVER_ADMIN], // Send response to both contact and admin email
       subject: 'Response to Your Inquiry ✅',
       html: emailContent,
     });

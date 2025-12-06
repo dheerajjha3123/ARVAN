@@ -21,6 +21,7 @@ const envSchema = z.object({
   WHATSAPP_BUISSNESS_ID: z.string(),
   RESEND_API_KEY: z.string(),
   RESEND_EMAIL: z.string(),
+  RESEND_EMAIL_RECEIVER_ADMIN: z.string(),
 });
 
 
